@@ -1,0 +1,70 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+red()   { print -P "%F{1}$*%f"; }
+green() { print -P "%F{2}$*%f"; }
+yellow(){ print -P "%F{3}$*%f"; }
+bold()  { print -P "%B$*%b"; }
+
+# 0) Must be in a git repo
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { red "Not a git repo"; exit 2; }
+
+# 1) Branch check (avoid pushing directly to main)
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$BRANCH" == "main" ]]; then
+  red "You are on 'main'. Create/switch to a working branch (e.g., sprint-3-docs)."
+  exit 3
+fi
+green "Branch: $BRANCH"
+
+# 2) Upstream/ahead/behind
+UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
+if [[ -z "$UPSTREAM" ]]; then
+  yellow "No upstream set for $BRANCH (first push will set it)."
+else
+  AHEAD="$(git rev-list --count $UPSTREAM..HEAD || echo 0)"
+  BEHIND="$(git rev-list --count HEAD..$UPSTREAM || echo 0)"
+  green "Upstream: $UPSTREAM (ahead: $AHEAD, behind: $BEHIND)"
+fi
+
+# 3) Stray Office/mac temp junk tracked or present
+JUNK=()
+while IFS= read -r f; do JUNK+=("$f"); done < <(
+  { git ls-files --cached; git ls-files --others --exclude-standard; } \
+  | grep -E '(^|/)\~\$|(^|/)\.DS_Store($|/)|(^|/)\._' || true
+)
+if (( ${#JUNK} )); then
+  yellow "Stray/lock files detected:"
+  for f in "${JUNK[@]}"; do print " - $f"; done
+  red "Action: add to .gitignore and/or 'git rm --cached' before proceeding."
+  exit 4
+fi
+green "No stray/lock files."
+
+# 4) Pending changes?
+DIRTY=0
+git diff --quiet || DIRTY=1
+git diff --cached --quiet || DIRTY=1
+if (( DIRTY )); then
+  yellow "Working tree or index has changes:"
+  git status -sb
+else
+  green "Working tree clean."
+fi
+
+# 5) Optional tag sanity (if a tag arg is provided)
+if [[ "${1:-}" != "" ]]; then
+  TAG="$1"
+  if ! git show-ref --tags --quiet --verify "refs/tags/$TAG"; then
+    if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+      yellow "Tag '$TAG' exists on origin but not locally. Consider: git fetch --tags"
+    else
+      red "Tag '$TAG' not found locally or on origin."
+      exit 5
+    fi
+  else
+    green "Tag '$TAG' found."
+  fi
+fi
+
+bold "haws-verify: OK"
