@@ -1,0 +1,28 @@
+# Risk Rules Configuration (v1)
+# Units assume site coordinates in meters, temp in °C, RH in %.
+proximity:
+  default_radius_m: 3.0
+  asset_type_radius_m:
+    forklift: 4.0
+    crane: 6.0
+  ttc_threshold_s: 4.0  # time-to-collision threshold for alerts
+heat:
+  # WBGT-lite via Heat Index proxy: tune thresholds to local policy
+  advisory_start_hi: 90   # Heat Index value
+  critical_hi: 103
+  min_duration_min: 10
+geofence:
+  violation_severity:
+    exclusion: high
+    dropzone: medium
+alerts:
+  severity_map:
+    proximity_high: high
+    proximity_med: medium
+    heat_advisory: medium
+    heat_critical: high
+    geofence_violation: medium
+suppression:
+  minimum_cohort_size: 5     # n>=5 to render team views
+  min_time_aggregation_min: 60
+  band_values: true          # show bands instead of raw values for small cohorts

@@ -1,0 +1,122 @@
+{
+  "site/env": {
+    "description": "Environmental sensors for the site",
+    "example": {
+      "ts": "2025-01-01T12:00:00Z",
+      "sensor_id": "env-01",
+      "temp_c": 34.2,
+      "rh": 58,
+      "pm25": 24,
+      "noise_db": 82,
+      "gas": {
+        "co": 1.2,
+        "h2s": 0.0
+      },
+      "lux": 300
+    }
+  },
+  "site/worker": {
+    "description": "Worker positions and events (anonymized role/team)",
+    "example": {
+      "ts": "2025-01-01T12:00:02Z",
+      "worker_id": "crewA-07",
+      "role": "Crew A",
+      "x": 42.3,
+      "y": 18.7,
+      "speed": 0.8,
+      "heading": 135,
+      "events": []
+    }
+  },
+  "site/equipment": {
+    "description": "Equipment telemetry & position",
+    "example": {
+      "ts": "2025-01-01T12:00:02Z",
+      "asset_id": "fork-12",
+      "type": "forklift",
+      "x": 45.0,
+      "y": 21.1,
+      "heading": 90,
+      "state": {
+        "engine": "on",
+        "speed": 2.1,
+        "load": 0.3
+      }
+    }
+  },
+  "site/geofence": {
+    "description": "Geofence zones as polygons",
+    "example": {
+      "zone_id": "dropzone-1",
+      "type": "dropzone",
+      "polygon": [
+        {
+          "x": 35,
+          "y": 10
+        },
+        {
+          "x": 60,
+          "y": 10
+        },
+        {
+          "x": 60,
+          "y": 25
+        },
+        {
+          "x": 35,
+          "y": 25
+        }
+      ]
+    }
+  },
+  "site/context": {
+    "description": "Daily task zones and routes",
+    "example": {
+      "date": "2025-01-01",
+      "task_zones": [
+        {
+          "zone_id": "trenching-a",
+          "polygon": [
+            {
+              "x": 20,
+              "y": 30
+            },
+            {
+              "x": 40,
+              "y": 30
+            },
+            {
+              "x": 40,
+              "y": 45
+            },
+            {
+              "x": 20,
+              "y": 45
+            }
+          ],
+          "start": "07:00",
+          "end": "15:00"
+        }
+      ],
+      "routes": [
+        {
+          "id": "haul-path-1",
+          "polyline": [
+            {
+              "x": 10,
+              "y": 5
+            },
+            {
+              "x": 70,
+              "y": 5
+            },
+            {
+              "x": 70,
+              "y": 40
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

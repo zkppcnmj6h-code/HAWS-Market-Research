@@ -1,0 +1,7 @@
+{"topic": "site/geofence", "payload": {"zone_id": "dropzone-1", "type": "dropzone", "polygon": [{"x": 35, "y": 10}, {"x": 60, "y": 10}, {"x": 60, "y": 25}, {"x": 35, "y": 25}]}}
+{"topic": "site/context", "payload": {"date": "2025-01-01", "task_zones": [{"zone_id": "trenching-a", "polygon": [{"x": 20, "y": 30}, {"x": 40, "y": 30}, {"x": 40, "y": 45}, {"x": 20, "y": 45}], "start": "07:00", "end": "15:00"}], "routes": [{"id": "haul-path-1", "polyline": [{"x": 10, "y": 5}, {"x": 70, "y": 5}, {"x": 70, "y": 40}]}]}}
+{"topic": "site/env", "payload": {"ts": "2025-07-15T12:00:00Z", "sensor_id": "env-01", "temp_c": 35.5, "rh": 60, "pm25": 18, "noise_db": 85, "gas": {"co": 1.0, "h2s": 0.0}, "lux": 280}}
+{"topic": "site/equipment", "payload": {"ts": "2025-07-15T12:00:02Z", "asset_id": "fork-12", "type": "forklift", "x": 46.0, "y": 22.5, "heading": 90, "state": {"engine": "on", "speed": 2.8, "load": 0.2}}}
+{"topic": "site/worker", "payload": {"ts": "2025-07-15T12:00:03Z", "worker_id": "crewA-07", "role": "Crew A", "x": 45.2, "y": 22.0, "speed": 0.4, "heading": 140, "events": []}}
+{"topic": "site/worker", "payload": {"ts": "2025-07-15T12:00:05Z", "worker_id": "crewA-07", "role": "Crew A", "x": 45.6, "y": 22.2, "speed": 0.6, "heading": 130, "events": []}}
+{"topic": "site/env", "payload": {"ts": "2025-07-15T12:15:00Z", "sensor_id": "env-01", "temp_c": 37.0, "rh": 62, "pm25": 22, "noise_db": 87, "gas": {"co": 1.1, "h2s": 0.0}, "lux": 260}}
