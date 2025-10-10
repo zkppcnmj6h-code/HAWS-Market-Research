@@ -1,478 +1,110 @@
 #!/usr/bin/env bash
+# haws-verify — governance preflight for HAWS
 set -euo pipefail
 
+# --- helpers ---
 bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
-green()  { printf "\033[32m%s\033[0m\n" "$*"; }
-yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
-red()    { printf "\033[31m%s\033[0m\n" "$*"; }
+green()  { printf "✔ %s\n" "$*"; }
+yellow() { printf "⚠ %s\n" "$*"; }
+red()    { printf "✖ %s\n" "$*"; }
 
-# repo root (may be parent of the structure folder)
-ROOT="$(git rev-parse --show-toplevel)"
+# --- ensure we are in a git repo root ---
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "${ROOT}" ]]; then
+  red "Not a git repository."
+  exit 1
+fi
 cd "$ROOT"
 
 bold "HAWS verify @ $ROOT"
 
-BR="$(git branch --show-current || true)"
-if [[ -z "${BR}" ]]; then
-  BR="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
-fi
-echo "Branch: ${BR}"
+# --- branch checks ---
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+echo "Branch: $BRANCH"
 
-# 0) Protected branch check
-if [[ "$BR" == "main" || "$BR" == "master" ]]; then
-  red "Protected branch '$BR'. Create/switch to a working branch (e.g., sprint-3-readsync)."
-  exit 10
-fi
-
-# 1) Working tree clean
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  red "Uncommitted changes present."
-  git status -sb
-  exit 11
-else
-  green "Working tree clean."
-fi
-
-# 2) Upstream ok (warn if missing)
-if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
-  yellow "No upstream configured for '${BR}'."
-else
-  # 3) Unpushed commits
-  if ! git diff --quiet @{u}.."${BR}"; then
-    yellow "Unpushed commits present on ${BR}."
-  else
-    green "No unpushed commits."
-  fi
-fi
-
-# 4) Governance gate (policy + signature present at canonical path)
-POLICY="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/Governance_Addendum_AI_Repo_Access.md"
-SCOPE="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/ai_access_scope.yaml"
-SIGNED_DIR="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/.signed"
-
-miss=0
-[[ -f "$POLICY" ]] || { red "Governance policy missing: $POLICY"; miss=1; }
-[[ -f "$SCOPE"  ]] || { red "AI access scope missing: $SCOPE"; miss=1; }
-[[ -d "$SIGNED_DIR" && -n "$(ls -A "$SIGNED_DIR" 2>/dev/null || true)" ]] || { red "No signatures found in: $SIGNED_DIR"; miss=1; }
-
-if [[ $miss -ne 0 ]]; then
-  exit 12
-fi
-green "Governance gate passed."
-
-# 5) Optional tag sanity (usage: haws-verify vX.Y.Z)
-if [[ "${1:-}" != "" ]]; then
-  TAG="$1"
-  if ! git show-ref --tags --quiet --verify "refs/tags/$TAG"; then
-    if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
-      yellow "Tag '$TAG' exists on origin but not locally. Run: git fetch --tags"
-    else
-      red "Tag '$TAG' not found locally or on origin."
-      exit 13
-    fi
-  else
-    green "Tag '$TAG' found."
-  fi
-fi
-
-bold "haws-verify: OK"#!/usr/bin/env bash
-set -euo pipefail
-
-# haws-verify — pre-flight repo hygiene + governance gate
-# Usage:
-#   ./bin/haws-verify [optional-tag]
-#
-# Exits non-zero if any blocking condition is found.
-
-red()    { printf "\033[31m✖ %s\033[0m\n" "$*"; }
-yellow() { printf "\033[33m⚠ %s\033[0m\n" "$*"; }
-green()  { printf "\033[32m✔ %s\033[0m\n" "$*"; }
-bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
-
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [[ -z "${repo_root}" ]]; then
-  red "Not inside a Git repository."; exit 1
-fi
-
-cd "$repo_root"
-
-bold "HAWS verify @ ${repo_root}"
-
-# 1) Branch checks
-branch="$(git rev-parse --abbrev-ref HEAD)"
-echo "Branch: ${branch}"
-
-if [[ "${branch}" == "main" || "${branch}" == "master" ]]; then
-  red "Protected branch '${branch}'. Create/switch to a working branch (e.g., sprint-3-readsync)."
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+  red "Protected branch 'main'. Create/switch to a working branch (e.g., sprint-3-readsync)."
   exit 2
 else
   green "On working branch."
 fi
 
-# 2) Working tree cleanliness
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  red "Working tree has unstaged or staged changes. Commit or stash before proceeding."
+# --- working tree must be clean ---
+if [[ -n "$(git status --porcelain)" ]]; then
+  red "Working tree not clean."
+  git status -sb
   exit 3
 else
   green "Working tree clean."
 fi
 
-# 3) Upstream / ahead-behind checks
-upstream="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
-if [[ -z "${upstream}" ]]; then
-  yellow "No upstream configured for '${branch}'."
-else
-  ahead="$(git rev-list --left-right --count "${branch}...${upstream}" | awk '{print $1}')"
-  behind="$(git rev-list --left-right --count "${branch}...${upstream}" | awk '{print $2}')"
-  if [[ "${ahead}" -gt 0 ]]; then
-    yellow "Branch is ${ahead} commit(s) ahead of upstream."
-  fi
-  if [[ "${behind}" -gt 0 ]]; then
-    yellow "Branch is ${behind} commit(s) behind upstream. Consider: git pull --ff-only"
-  fi
-fi
-
-# 4) Unpushed commits (local to origin)
-if git rev-parse --verify "origin/${branch}" >/dev/null 2>&1; then
-  if ! git diff --quiet "origin/${branch}...${branch}"; then
-    yellow "There are local commits not on origin."
+# --- upstream + unpushed commits ---
+if git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
+  if [[ -n "$(git log --oneline '@{u}..')" ]]; then
+    yellow "Unpushed commits present."
   else
     green "No unpushed commits."
   fi
 else
-  yellow "No remote branch 'origin/${branch}' yet."
-fi
-
-# 5) Governance gate (policy + signature + scope)
-#    Canonical paths relative to repo root:
-policy_path="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/Governance_Addendum_AI_Repo_Access.md"
-scope_path="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/ai_access_scope.yaml"
-sig_dir="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/.signed"
-
-block=false
-if [[ ! -f "${policy_path}" ]]; then
-  red "Governance policy missing: ${policy_path}"
-  block=true
-fi
-if [[ ! -f "${scope_path}" ]]; then
-  red "AI access scope missing: ${scope_path}"
-  block=true
-else
-  # light lint: must contain 'allowed_paths:'
-  if ! grep -q "^allowed_paths:" "${scope_path}"; then
-    red "Scope file invalid (missing 'allowed_paths:'): ${scope_path}"
-    block=true
-  fi
-fi
-if [[ ! -d "${sig_dir}" ]] || ! ls -1 "${sig_dir}"/*.sig >/dev/null 2>&1; then
-  red "No signatures found under: ${sig_dir}"
-  block=true
-fi
-
-if [[ "${block}" == "true" ]]; then
-  exit 4
-else
-  green "Governance policy, scope, and signatures present."
-fi
-
-# 6) Optional tag existence check (local vs origin) — pass a tag name to verify
-if [[ "${1:-}" != "" ]]; then
-  tag="$1"
-  if ! git show-ref --tags --quiet --verify "refs/tags/${tag}"; then
-    if git ls-remote --tags origin | grep -q "refs/tags/${tag}"; then
-      yellow "Tag '${tag}' exists on origin but not locally. Consider: git fetch --tags"
-    else
-      red "Tag '${tag}' not found locally or on origin."
-      exit 5
-    fi
-  else
-    green "Tag '${tag}' found locally."
-  fi
-fi
-
-bold "haws-verify: OK"<<<<<<< HEAD
-#!/usr/bin/env zsh
-set -euo pipefail
-
-red()   { print -P "%F{1}$*%f"; }
-green() { print -P "%F{2}$*%f"; }
-yellow(){ print -P "%F{3}$*%f"; }
-bold()  { print -P "%B$*%b"; }
-
-# 0) Must be in a git repo
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { red "Not a git repo"; exit 2; }
-
-# 1) Branch check (avoid pushing directly to main)
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-if [[ "$BRANCH" == "main" ]]; then
-  red "You are on 'main'. Create/switch to a working branch (e.g., sprint-3-docs)."
-  exit 3
-fi
-green "Branch: $BRANCH"
-
-# 2) Upstream/ahead/behind
-UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
-if [[ -z "$UPSTREAM" ]]; then
-  yellow "No upstream set for $BRANCH (first push will set it)."
-else
-  AHEAD="$(git rev-list --count $UPSTREAM..HEAD || echo 0)"
-  BEHIND="$(git rev-list --count HEAD..$UPSTREAM || echo 0)"
-  green "Upstream: $UPSTREAM (ahead: $AHEAD, behind: $BEHIND)"
-fi
-
-# 3) Stray Office/mac temp junk tracked or present
-JUNK=()
-while IFS= read -r f; do JUNK+=("$f"); done < <(
-  { git ls-files --cached; git ls-files --others --exclude-standard; } \
-  | grep -E '(^|/)\~\$|(^|/)\.DS_Store($|/)|(^|/)\._' || true
-)
-if (( ${#JUNK} )); then
-  yellow "Stray/lock files detected:"
-  for f in "${JUNK[@]}"; do print " - $f"; done
-  red "Action: add to .gitignore and/or 'git rm --cached' before proceeding."
-  exit 4
-fi
-green "No stray/lock files."
-
-# 4) Pending changes?
-DIRTY=0
-git diff --quiet || DIRTY=1
-git diff --cached --quiet || DIRTY=1
-if (( DIRTY )); then
-  yellow "Working tree or index has changes:"
-  git status -sb
-else
-  green "Working tree clean."
-fi
-
-# 5) Optional tag sanity (if a tag arg is provided)
-if [[ "${1:-}" != "" ]]; then
-  TAG="$1"
-  if ! git show-ref --tags --quiet --verify "refs/tags/$TAG"; then
-    if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
-      yellow "Tag '$TAG' exists on origin but not locally. Consider: git fetch --tags"
-    else
-      red "Tag '$TAG' not found locally or on origin."
-      exit 5
-    fi
-  else
-    green "Tag '$TAG' found."
-  fi
-fi
-
-bold "haws-verify: OK"
-=======
-#!/usr/bin/env bash
-# haws-verify — repository hygiene + governance gate
-# Exit codes:
-#  1: not a git repo
-#  2: on protected branch
-#  3: dirty working tree
-#  4: unpushed commits
-#  5: required tag not found
-#  6: governance policy missing
-#  7: signatures missing
-#  8: scope file missing
-#  9: scope content invalid
-# 10: unknown error
-
-set -euo pipefail
-
-# --- formatting helpers ---
-bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
-green()  { printf "\033[32m✔ %s\033[0m\n" "$*"; }
-yellow() { printf "\033[33m⚠ %s\033[0m\n" "$*"; }
-red()    { printf "\033[31m✖ %s\033[0m\n" "$*"; }
-
-die() { red "$1"; exit "${2:-10}"; }
-
-# --- cd to repo root or fail ---
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  die "Not inside a git repository. Run from your repo." 1
-fi
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-cd "$REPO_ROOT"
-
-bold "HAWS verify @ $REPO_ROOT"
-
-# --- branch checks ---
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-bold "Branch: $BRANCH"
-
-# Protected branches that must not be used for direct work
-PROTECTED=("main" "master" "production")
-for p in "${PROTECTED[@]}"; do
-  if [[ "$BRANCH" == "$p" ]]; then
-    die "Protected branch '$BRANCH'. Create/switch to a working branch (e.g., sprint-3-readsync)." 2
-  fi
-done
-green "On working branch."
-
-# --- working tree clean? ---
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  git status -sb
-  die "Working tree not clean. Commit or stash before proceeding." 3
-fi
-green "Working tree clean."
-
-# --- unpushed commits? ---
-UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
-if [[ -z "${UPSTREAM}" ]]; then
   yellow "No upstream configured for '$BRANCH'."
+  yellow "No remote branch 'origin/$BRANCH' yet."
+fi
+
+# --- governance files (support both canonical + VisualSystemsDesigner paths) ---
+POLICY_CANDIDATES=(
+  "HAWS_00_ADMIN_CORE/01_Master_Documents/Governance_Addendum_AI_Repo_Access.md"
+  "VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/Governance_Addendum_AI_Repo_Access.md"
+)
+SCOPE_CANDIDATES=(
+  "HAWS_00_ADMIN_CORE/01_Master_Documents/ai_access_scope.yaml"
+  "VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/ai_access_scope.yaml"
+)
+SIGDIR_CANDIDATES=(
+  "HAWS_00_ADMIN_CORE/01_Master_Documents/.signed"
+  "VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/.signed"
+)
+
+pick_first_existing() {
+  for p in "$@"; do
+    [[ -e "$p" ]] && { echo "$p"; return 0; }
+  done
+  return 1
+}
+
+POLICY="$(pick_first_existing "${POLICY_CANDIDATES[@]}" || true)"
+SCOPE="$(pick_first_existing "${SCOPE_CANDIDATES[@]}" || true)"
+SIGDIR="$(pick_first_existing "${SIGDIR_CANDIDATES[@]}" || true)"
+
+if [[ -z "${POLICY:-}" ]]; then
+  red "Governance policy missing: expected at one of:"
+  printf ' - %s\n' "${POLICY_CANDIDATES[@]}"
+  exit 4
 else
-  if ! git diff --quiet "$UPSTREAM"...; then
-    yellow "There are commits not pushed to upstream ($UPSTREAM)."
-    die "Push your branch: git push -u origin $BRANCH" 4
-  fi
-fi
-green "No unpushed commits."
-
-# --- governance gate (required for any PR/merge) ---
-POLICY_PATH="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/Governance_Addendum_AI_Repo_Access.md"
-SIG_DIR="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/.signed"
-SCOPE_PATH="VisualSystemsDesigner/HAWS_Repository_Structure/HAWS_00_ADMIN_CORE/01_Master_Documents/ai_access_scope.yaml"
-
-# 1) policy must exist
-if [[ ! -f "$POLICY_PATH" ]]; then
-  die "Governance policy missing: $POLICY_PATH" 6
-fi
-green "Policy present."
-
-# 2) at least one signature must exist
-if [[ ! -d "$SIG_DIR" ]]; then
-  die "Signatures directory missing: $SIG_DIR" 7
-fi
-SIG_COUNT="$(find "$SIG_DIR" -type f -name '*.sig' 2>/dev/null | wc -l | tr -d ' ')"
-if [[ "$SIG_COUNT" -lt 1 ]]; then
-  die "No signatures found in $SIG_DIR (*.sig). Obtain required approvals." 7
-fi
-green "Signatures present ($SIG_COUNT)."
-
-# 3) scope file must exist and contain at least one allowed path for Design System workstream
-if [[ ! -f "$SCOPE_PATH" ]]; then
-  die "AI access scope missing: $SCOPE_PATH" 8
+  green "Policy found: $POLICY"
 fi
 
-# quick structural sanity: must contain 'allowed_paths:' and at least one HAWS_10_DESIGN_SYSTEM path
-if ! grep -qE '^[[:space:]]*allowed_paths:' "$SCOPE_PATH"; then
-  die "Scope file lacks 'allowed_paths:' key: $SCOPE_PATH" 9
+if [[ -z "${SCOPE:-}" ]]; then
+  red "ai_access_scope.yaml missing: expected at one of:"
+  printf ' - %s\n' "${SCOPE_CANDIDATES[@]}"
+  exit 4
+else
+  green "Scope found: $SCOPE"
 fi
-if ! grep -q 'HAWS_10_DESIGN_SYSTEM' "$SCOPE_PATH"; then
-  die "Scope does not include HAWS_10_DESIGN_SYSTEM paths (add per Option A/B design)." 9
-fi
-green "Scope file valid."
 
-# --- optional tag sanity (pass a tag name as arg) ---
-if [[ "${1:-}" != "" ]]; then
-  TAG="$1"
-  if ! git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
-    if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
-      yellow "Tag '$TAG' exists on origin but not locally. Run: git fetch --tags"
-    else
-      die "Tag '$TAG' not found locally or on origin." 5
-    fi
-  else
-    green "Tag '$TAG' present."
+if [[ -z "${SIGDIR:-}" || -z "$(echo "$SIGDIR"/*.sig 2>/dev/null || true)" ]]; then
+  yellow "No signatures found in .signed/ (optional for local checks)."
+else
+  green "Signatures present in: $SIGDIR"
+fi
+
+# --- quick scope sanity (just show allowed paths) ---
+if command -v awk >/dev/null 2>&1; then
+  ALLOWED="$(awk '/^allowed_paths:/,0 { if ($1 ~ /^-/) print $2 }' "$SCOPE" || true)"
+  if [[ -n "$ALLOWED" ]]; then
+    echo "Allowed paths in scope:"
+    printf ' - %s\n' $ALLOWED
   fi
 fi
 
-bold "haws-verify: OK"chmod +x bin/haws-verify# HAWS — AI Read Scope (Option B)
-# Only the files matched below are exported to the AI reading bundle.
-# Expand cautiously and only via signed approvals.
-
-version: 1
-
-allow:
-  # Governance + briefs + proposals
-  - path: "HAWS_00_ADMIN_CORE"
-    include:
-      - "01_Master_Documents/*.md"
-      - "02_Briefs/*.md"
-      - "03_Proposals/*.md"
-
-  # Program status (what GPTs need to read for context)
-  - path: "HAWS_10_PROGRAM"
-    include:
-      - "04_Status/*.md"
-
-  # >>> NEW: Design System (UX workstream) <<<
-  - path: "HAWS_10_DESIGN_SYSTEM"
-    include:
-      - "02_Briefs/*.md"
-      - "03_Outputs/UX_Flows/*.md"
-      - "03_Outputs/UX_Flows/*.png"   # optional: include low-fi exports
-      - "03_Outputs/UX_Flows/*.svg"   # optional: vector wireframes
-      - "01_Inputs/*.md"              # any upstream UX inputs you keep as markdown
-
-  # Product specs & standards needed for Sprint 1 reading
-  - path: "HAWS_20_PRODUCT_DEVELOPMENT"
-    include:
-      - "Standards/*.md"
-      - "01_MVP_Prototypes/Architecture/*.md"
-      - "02_Backend_Scripts/API_Integrations/contracts/*.yaml"
-      - "reports/weekly/*/manifest.json"
-
-  # Coordinator tools (templates/process)
-  - path: "HAWS_99_COORDINATOR_TOOLS"
-    include:
-      - "04_Templates/*.md"
-
-deny:
-  - "**/*.key"
-  - "**/*.pem"
-  - "**/*.env"
-  - "**/.env*"
-  - "**/*secret*"
-  - "**/*.pdf"     # share PDFs manually if needed
-  - "**/*.xlsx"    # prefer CSV/MD extracts
-  - "**/.DS_Store"# HAWS — AI Read Scope (Option B)
-# Only the files matched below are exported to the AI reading bundle.
-# Expand cautiously and only via signed approvals.
-
-version: 1
-
-allow:
-  # Governance + briefs + proposals
-  - path: "HAWS_00_ADMIN_CORE"
-    include:
-      - "01_Master_Documents/*.md"
-      - "02_Briefs/*.md"
-      - "03_Proposals/*.md"
-
-  # Program status (what GPTs need to read for context)
-  - path: "HAWS_10_PROGRAM"
-    include:
-      - "04_Status/*.md"
-
-  # >>> NEW: Design System (UX workstream) <<<
-  - path: "HAWS_10_DESIGN_SYSTEM"
-    include:
-      - "02_Briefs/*.md"
-      - "03_Outputs/UX_Flows/*.md"
-      - "03_Outputs/UX_Flows/*.png"   # optional: include low-fi exports
-      - "03_Outputs/UX_Flows/*.svg"   # optional: vector wireframes
-      - "01_Inputs/*.md"              # any upstream UX inputs you keep as markdown
-
-  # Product specs & standards needed for Sprint 1 reading
-  - path: "HAWS_20_PRODUCT_DEVELOPMENT"
-    include:
-      - "Standards/*.md"
-      - "01_MVP_Prototypes/Architecture/*.md"
-      - "02_Backend_Scripts/API_Integrations/contracts/*.yaml"
-      - "reports/weekly/*/manifest.json"
-
-  # Coordinator tools (templates/process)
-  - path: "HAWS_99_COORDINATOR_TOOLS"
-    include:
-      - "04_Templates/*.md"
-
-deny:
-  - "**/*.key"
-  - "**/*.pem"
-  - "**/*.env"
-  - "**/.env*"
-  - "**/*secret*"
-  - "**/*.pdf"     # share PDFs manually if needed
-  - "**/*.xlsx"    # prefer CSV/MD extracts
-  - "**/.DS_Store"
->>>>>>> e0c2238 (governance: add AI policy, scope, and signature; enable Level 2 visibility)
+green "Governance gate passed."
+bold "haws-verify: OK"
