@@ -1,4 +1,21 @@
 ---
+
+## Quick commit steps (copy/paste)
+
+```bash
+# 1) Ensure branch
+git switch -c sprint-3-docs 2>/dev/null || git switch sprint-3-docs
+
+# 2) Create folders and file
+mkdir -p "HAWS_99_COORDINATOR_TOOLS/04_Templates"
+nano "HAWS_99_COORDINATOR_TOOLS/04_Templates/PR_Template.md"
+# paste FULL template, save (Ctrl+O, Enter), exit (Ctrl+X)
+
+# 3) Verify + commit
+./bin/haws-verify
+git add "HAWS_99_COORDINATOR_TOOLS/04_Templates/PR_Template.md"
+git commit -m "docs: add standardized Pull Request description template (v1.0)"
+git push -u origin sprint-3-docs---
 document_type: template
 workstream: HAWS_99_COORDINATOR_TOOLS
 template_type: Pull_Request_Description

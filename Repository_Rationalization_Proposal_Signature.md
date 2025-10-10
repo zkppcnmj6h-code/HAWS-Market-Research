@@ -1,30 +1,4 @@
-## Summary
-Adds a signature-ready proposal to launch the HAWS Repository Rationalization Initiative
-(Sprint-3: Documentation & Governance).
-
-**File**
-- /HAWS_00_ADMIN_CORE/03_Proposals/Repository_Rationalization_Proposal_Signature.md
-
-## Why
-- Reduce redundancy and confusion (older mirrors/backups)
-- Enforce HAWS numbering & metadata governance
-- Separate active vs. archive materials cleanly
-- Enable routine hygiene via scripts
-
-## Reviewers / Sign-off
-- Strategic Advisor
-- Architecture Advisor
-- Strategic Coordinator
-- UX/UI Design Specialist
-- Media Researcher
-- Coder / Developer
-- Project Lead (final approval)
-
-## Next steps upon merge
-- Coordinator issues audit instructions to team
-- Advisors produce Keep/Merge/Archive/Delete report
-- Non-destructive cleanup script generated and executed
-- Changes tagged (e.g., v1.3.0) and logged in Change_Log.md---
+---
 document_type: internal_proposal
 workstream: HAWS_00_ADMIN_CORE
 owner: Aaron Simpson (Project Lead)
