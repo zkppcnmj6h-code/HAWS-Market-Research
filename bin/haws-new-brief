@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import argparse, sys, os, datetime, json
+
+def main():
+    p = argparse.ArgumentParser(description="Generate a HAWS sprint brief from templates.")
+    p.add_argument("--role", required=True, choices=["architect","coder","researcher"])
+    p.add_argument("--owner", default="TBD")
+    p.add_argument("--sprint", default="S2_Automation_Foundation")
+    p.add_argument("--out", help="Output file path (.md)")
+    p.add_argument("--json", action="store_true")
+    args = p.parse_args()
+
+    tmpl_name = f"brief_{args.role}.md.tmpl"
+    tmpl_path = os.path.join("templates", tmpl_name)
+    if not os.path.isfile(tmpl_path):
+        print(f"Template not found: {tmpl_path}", file=sys.stderr); sys.exit(2)
+
+    with open(tmpl_path, "r", encoding="utf-8") as f:
+        body = f.read()
+    today = datetime.date.today().isoformat()
+    body = (body.replace("{{OWNER}}", args.owner)
+                 .replace("{{SPRINT}}", args.sprint)
+                 .replace("{{DATE}}", today))
+
+    out_path = args.out or f"{args.role.capitalize()}_Brief_{args.sprint}.md"
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(body)
+
+    if args.json:
+        print(json.dumps({"out": out_path, "role": args.role, "sprint": args.sprint}))
+    else:
+        print(f"Wrote {out_path}")
+
+if __name__ == "__main__":
+    main()
