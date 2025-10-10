@@ -1,0 +1,12 @@
+version: 1
+policy: Governance_Addendum_AI_Repo_Access.md
+scope_name: "Level 2: Governed Read-Only Visibility"
+allowed_paths:
+  - "HAWS_10_DESIGN_SYSTEM/02_Briefs/"
+  - "HAWS_10_DESIGN_SYSTEM/03_Outputs/UX_Flows/"
+  - "HAWS_10_DESIGN_SYSTEM/04_Templates/"
+  - "HAWS_20_PRODUCT_DEVELOPMENT/Standards/metrics_spec_v0_1.md"
+  - "HAWS_10_PROGRAM/04_Status/"
+notes:
+  - "Read-only for AI assistants; proposals must be diffs on ai-proposals/*."
+  - "Human review & merge required; no direct write privileges."

@@ -1,3 +1,21 @@
+# Governance Addendum — AI Repository Access (Level 2: Read-Only Visibility)
+
+**Scope:** Read-only visibility for AI assistants over designated paths.  
+**Principles:** Human-in-the-loop; scoped access; auditable proposals; branch protection.
+
+## Rules
+1. AI assistants may **only read** files under paths listed in `ai_access_scope.yaml`.
+2. Any changes must be proposed as patches on `ai-proposals/*` branches; humans review & merge.
+3. No secrets or PII may be exposed; sensitive material must be redacted or stored outside scope.
+4. Coordinators maintain the scope file and signature records in `.signed/`.
+
+## Enforcement
+- `bin/haws-verify` blocks PRs if policy, scope, or signatures are missing.
+- Branch protection prevents direct writes from automation.
+- PRs must include verification output from `bin/haws-verify`.
+
+*Owner:* Project Lead (Aaron Simpson)  
+*Effective:* 2025-10-09<<<<<<< HEAD
 ---
 document_type: governance_addendum
 category: AI_Assisted_Development
@@ -245,3 +263,22 @@ Revisions to this policy must follow the standard HAWS governance procedure:
 ---
 
 **End of Governance Addendum**
+=======
+# Governance Addendum — AI Repository Access (Level 2: Read-Only Visibility)
+
+**Scope:** Read-only visibility for AI assistants over designated paths.  
+**Principles:** Human-in-the-loop; scoped access; auditable proposals; branch protection.
+
+## Rules
+1. AI assistants may **only read** files under paths listed in `ai_access_scope.yaml`.
+2. Any changes must be proposed as patches on `ai-proposals/*` branches; humans review & merge.
+3. No secrets or PII may be exposed; sensitive material must be redacted or stored outside scope.
+4. Coordinators maintain the scope file and signature records in `.signed/`.
+
+## Enforcement
+- `bin/haws-verify` blocks PRs if policy or signatures are missing.
+- Branch protection prevents direct writes from automation.
+
+*Owner:* Project Lead (Aaron Simpson)  
+*Effective:* 2025-10-09
+>>>>>>> 9a9dc31 (governance: add AI repo access policy, scope, and signature (Level 2))
